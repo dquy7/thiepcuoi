@@ -18,6 +18,9 @@ await db.exec(`
   create publication supabase_realtime;
 `);
 await db.exec(await readFile(new URL('./setup.sql', import.meta.url), 'utf8'));
+const adminMigration = await readFile(new URL('./admin-edit.sql', import.meta.url), 'utf8');
+await db.exec(adminMigration);
+await db.exec(adminMigration); // Chạy lại migration không mất dữ liệu / không lỗi.
 const guest = '00000000-0000-4000-8000-000000000001';
 const other = '00000000-0000-4000-8000-000000000002';
 const admin = '00000000-0000-4000-8000-000000000003';
@@ -41,6 +44,9 @@ try {
   await assert.rejects(db.query("insert into public.wishes(wedding_id,name,message) values ('minh-anh-thu-ha','Fake','Bypass')"));
   await db.query('delete from public.wishes');
   assert.equal((await db.query('select id from public.wishes')).rows.length,1);
+  assert.equal((await db.query("update public.wishes set message='Not allowed' returning id")).rows.length,0);
+  assert.equal((await db.query("update public.rsvps set guests=5 returning id")).rows.length,0);
+  assert.equal((await db.query('delete from public.rsvps returning id')).rows.length,0);
   await role('authenticated',other);
   await assert.rejects(db.query("select public.send_wish('minh-anh-thu-ha','Other','Hello',array[$1])",[`${guest}/minh-anh-thu-ha/photo.jpg`]));
   await assert.rejects(db.query("insert into storage.objects(bucket_id,name,owner_id) values ('wish-photos',$1,$2)",[`${guest}/minh-anh-thu-ha/foreign.jpg`,other]));
@@ -51,12 +57,22 @@ try {
   await role('authenticated',admin);
   const rsvps = (await db.query('select * from public.rsvps')).rows;
   assert.equal(rsvps.length,1); assert.equal(rsvps[0].guests,3); assert.deepEqual(rsvps[0].events,['ceremony']);
+  await db.query("update public.rsvps set name='Edited guest',guests=5,events=array['meal','ceremony'] where id=$1",[rsvps[0].id]);
+  assert.equal((await db.query('select guests from public.rsvps')).rows[0].guests,5);
+  await assert.rejects(db.query('update public.rsvps set guests=99 where id=$1',[rsvps[0].id]));
+  await assert.rejects(db.query("update public.rsvps set events=array['invalid'] where id=$1",[rsvps[0].id]),/INVALID_EVENTS/);
+  await assert.rejects(db.query("update public.rsvps set owner_id=$1",[other]));
+  assert.equal((await db.query("update public.wishes set name='Edited',message='Admin edit' returning id")).rows.length,2);
+  await db.query('delete from public.rsvps where id=$1',[rsvps[0].id]);
+  assert.equal((await db.query('select id from public.rsvps')).rows.length,0);
   await db.query('delete from public.wishes');
   assert.equal((await db.query('select id from public.wishes')).rows.length,0);
   await role('authenticated',guest);
   await db.query("select public.send_wish('another-wedding','Guest','Private admin boundary','{}')");
   await role('authenticated',admin);
   await db.query("delete from public.wishes where wedding_id='another-wedding'");
+  assert.equal((await db.query("update public.wishes set message='Other admin edit' where wedding_id='another-wedding' returning id")).rows.length,0);
+  assert.equal((await db.query("delete from public.rsvps where wedding_id='another-wedding' returning id")).rows.length,0);
   assert.equal((await db.query("select id from public.wishes where wedding_id='another-wedding'")).rows.length,1);
-  console.log('PASS: guest posting, cooldown, photo ownership, direct-write denial, private RSVP, update RSVP, admin access and cross-wedding isolation.');
+  console.log('PASS: guest posting, photo ownership, private RSVP, admin edit/delete, validation, guest edit/delete denial, cross-wedding isolation and repeat migration.');
 } finally { await db.close(); }

@@ -8,6 +8,8 @@ Tạo project tại https://supabase.com/dashboard. Chọn vùng gần Việt Na
 
 Mở **SQL Editor → New query**, dán toàn bộ `supabase/setup.sql` và Run một lần trong project mới. Script tạo lời chúc công khai, xác nhận riêng, bucket ảnh và quyền quản lý. Nếu đã chạy thành công, không chạy lại toàn bộ script.
 
+Tiếp theo chạy `supabase/admin-edit.sql` để bật sửa/xóa xác nhận và sửa lời chúc cho tài khoản quản lý. Project đã thiết lập trước đó chỉ cần chạy file `admin-edit.sql`, không chạy lại `setup.sql`. File cập nhật này không xóa dữ liệu và có thể chạy lại.
+
 Trong **Authentication → Sign In / Providers**, bật **Anonymous Sign-Ins**. Khách không điền email/mật khẩu; website tự tạo phiên khách khi gửi. Phiên này cũng giúp khách cập nhật xác nhận từ cùng trình duyệt. Xóa dữ liệu trình duyệt hoặc dùng thiết bị khác sẽ tạo phiên mới.
 
 Lời chúc giới hạn một lần gửi mỗi phút/phiên. Storage chỉ nhận JPG/PNG/WebP, 5 MB mỗi file; tối đa 6 ảnh/lời chúc. Đây chưa phải chống bot mạnh: trước khi chia sẻ rộng, có thể bật CAPTCHA cho anonymous auth và bổ sung widget CAPTCHA tương ứng trong website. Không bật CAPTCHA riêng lẻ khi frontend chưa có widget, vì gửi sẽ bị chặn.
@@ -42,7 +44,7 @@ values ('UUID_CUA_BAN', 'minh-anh-thu-ha');
 
 Website → mở thiệp → cuối trang **Quản lý thiệp** → đăng nhập. Quyền quản lý kiểm tra ở database, không chỉ ở giao diện. Không bật đăng ký tài khoản công khai nếu không cần.
 
-Màn quản lý có tổng số người từng buổi, CSV danh sách xác nhận và xóa 100 lời chúc gần nhất. Lời chúc cũ hơn có thể quản lý tại Supabase Table Editor. Ảnh lời chúc là công khai, vì vậy form thông báo cho khách trước khi gửi. Xóa lời chúc qua Table Editor không tự xóa file Storage; màn quản lý website sẽ cố xóa cả ảnh.
+Màn quản lý có tổng số người từng buổi, CSV danh sách xác nhận, sửa/xóa xác nhận và sửa/xóa 100 lời chúc gần nhất. Khi sửa lời chúc, giữ nguyên ảnh đính kèm. Lời chúc cũ hơn có thể quản lý tại Supabase Table Editor. Ảnh lời chúc là công khai, vì vậy form thông báo cho khách trước khi gửi. Xóa lời chúc qua Table Editor không tự xóa file Storage; màn quản lý website sẽ cố xóa cả ảnh.
 
 ## 6. Kiểm tra sau kết nối
 
