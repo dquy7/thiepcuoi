@@ -29,7 +29,9 @@ Dùng cổng mà Vite hiển thị nếu khác 5173. Khi triển khai, thay `htt
 
 Địa điểm chính xác: `mapUrl` là link chia sẻ Google Maps khi bấm địa chỉ; `mapQuery` là tọa độ dạng `'20.435278,106.048065'` dùng cho nút chỉ đường. Ô bản đồ minh họa trên thiệp mở Google Maps với điểm đến đã điền sẵn; khách chọn điểm xuất phát để xem đường đi. Nếu không có hai trường này, thiệp tìm theo `address`.
 
-Xác nhận tham dự và lời chúc lưu trên trình duyệt, tách riêng theo id cặp đôi. Chưa có máy chủ nhận dữ liệu. Muốn chủ thiệp xem được phản hồi của mọi khách cần thêm API và cơ sở dữ liệu, mỗi phản hồi gắn với id cặp đôi.
+Lời chúc và xác nhận dùng backend Supabase, tách riêng theo id cặp đôi. Lời chúc công khai hỗ trợ 0–6 ảnh và cập nhật Realtime; xác nhận chỉ tài khoản quản lý xem được. Hai mục này mở thành màn riêng, quay lại thiệp giữ vị trí cuộn và nhạc đang phát. Xem [hướng dẫn kết nối Supabase](supabase/README.md). Khi chưa cấu hình backend, nút gửi bị vô hiệu hóa; không lưu giả lập trên trình duyệt.
+
+Kiểm thử quyền database: `npm.cmd run test:backend`. Bài kiểm thử dùng PostgreSQL local và mô phỏng schema Auth/Storage; cần kiểm tra thêm trên project Supabase thật sau khi kết nối.
 
 ## Đưa lên GitHub và công khai bằng GitHub Pages
 

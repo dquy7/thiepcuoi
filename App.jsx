@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Gift, Heart, House, Images, Leaf, MapPin, Menu, Music2, Pause, Play, UserRoundCheck, X } from 'lucide-react';
 
 import { defaultWeddingId, weddings } from './weddings.js';
 import WelcomeConfetti from './WelcomeConfetti.jsx';
+import { WishesPage, RsvpPage } from './GuestPages.jsx';
+import AdminPage from './AdminPage.jsx';
 const steps = [
   { id: 'home', icon: CalendarDays, title: 'Xem thông tin lễ cưới', text: 'Tìm hiểu thời gian, địa điểm, nhà trai, nhà gái và các thông tin quan trọng khác.' },
   { id: 'rsvp', icon: UserRoundCheck, title: 'Xác nhận tham dự', text: 'Nhấn vào nút “Xác nhận tham dự” để gửi thông tin của bạn cho Ban Tổ Chức.' },
@@ -15,9 +17,6 @@ const navigation = [
   { id: 'home', icon: House, label: 'Trang chủ' }, { id: 'rsvp', icon: CalendarDays, label: 'Xác nhận' },
   { id: 'map', icon: MapPin, label: 'Bản đồ' }, { id: 'album', icon: Images, label: 'Album' }, { id: 'wishes', icon: Heart, label: 'Lời chúc' },
 ];
-function readSaved(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; }
-}
 function assetUrl(url) {
   return url?.startsWith('/') && !url.startsWith('//') ? `${import.meta.env.BASE_URL}${url.slice(1)}` : url;
 }
@@ -141,7 +140,6 @@ export default function App() {
 
 // Một giao diện dùng chung, dữ liệu của từng cặp đôi truyền qua props.
 function WeddingInvitation({ id, wedding }) {
-  const storageKey = kind => `wedding-${id}-${kind}`;
   const events = (wedding.events?.length ? wedding.events : [
     { id: 'meal', title: 'Bữa cơm thân mật được tổ chức' },
     { id: 'ceremony', title: 'Lễ thành hôn được tổ chức' },
@@ -156,7 +154,15 @@ function WeddingInvitation({ id, wedding }) {
   const [menu, setMenu] = useState(false);
   const [scrolled, setScrolled] = useState(() => window.scrollY > 40);
   const [notice, setNotice] = useState('');
-  const [wishes, setWishes] = useState(() => readSaved(storageKey('wishes'), []));
+  const savedScroll = useRef(null);
+  const separatePage = ['wishes', 'rsvp', 'admin'].includes(page);
+  useLayoutEffect(() => {
+    if (separatePage) window.scrollTo({ top: 0, behavior: 'instant' });
+    else if (savedScroll.current !== null) {
+      window.scrollTo({ top: savedScroll.current, behavior: 'instant' });
+      savedScroll.current = null;
+    }
+  }, [page, separatePage]);
   const [playing, setPlaying] = useState(false);
   const [tracks] = useState(() => (wedding.musicTracks?.length ? wedding.musicTracks : wedding.musicUrl ? [{ title: 'Nhạc cưới', url: wedding.musicUrl }] : []).map(track => ({ ...track, url: assetUrl(track.url) })));
   const [trackIndex, setTrackIndex] = useState(() => tracks.length ? Math.floor(Math.random() * tracks.length) : -1);
@@ -200,25 +206,13 @@ function WeddingInvitation({ id, wedding }) {
     window.scrollTo({ top: 0, behavior: 'instant' });
   }
   function open(id) {
+    if (['wishes', 'rsvp', 'admin'].includes(id) && !separatePage) savedScroll.current = window.scrollY;
     setMenu(false); setNotice(''); setPage(id);
-    if (id === 'home') window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (id === 'home') { savedScroll.current = null; window.scrollTo({ top: 0, behavior: 'smooth' }); }
   }
   function closeDialog() {
     setNotice('');
     setPage('home');
-  }
-  function submit(e, kind) {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.currentTarget));
-    data.name = data.name.trim();
-    if (!data.name || (kind === 'wishes' && !data.message.trim())) { setNotice('Vui lòng điền đầy đủ nội dung.'); return; }
-    const value = kind === 'wishes' ? [...wishes, { ...data, message: data.message.trim() }] : data;
-    try {
-      localStorage.setItem(storageKey(kind), JSON.stringify(value));
-      if (kind === 'wishes') setWishes(value);
-      setNotice(kind === 'wishes' ? 'Đã lưu lời chúc của bạn trên thiết bị này. Cảm ơn bạn!' : 'Đã lưu xác nhận trên thiết bị này. Cảm ơn bạn!');
-      e.currentTarget.reset();
-    } catch { setNotice('Trình duyệt không thể lưu dữ liệu. Vui lòng thử lại.'); }
   }
   async function playMusic() {
     if (!audio.current || !tracks.length) return;
@@ -270,6 +264,7 @@ function WeddingInvitation({ id, wedding }) {
     </section>}
     <div className="invitation-content" hidden={!opened}>
     {opened && <WelcomeConfetti />}
+    <div className="invitation-home" hidden={separatePage}>
     <header className={`header ${scrolled ? 'is-scrolled' : ''}`}><a className="brand" href="#home" onClick={() => open('home')}><Heart size={23} fill="currentColor" /><span>Thiệp Cưới</span></a>
       <button className="icon-button" aria-label="Mở menu" aria-expanded={menu} aria-controls="header-menu" onClick={() => setMenu(!menu)}>{menu ? <X /> : <Menu />}</button>
       {menu && <nav id="header-menu" className="dropdown">{navigation.map(item => <button key={item.id} onClick={() => open(item.id)}>{item.label}</button>)}</nav>}
@@ -291,22 +286,24 @@ function WeddingInvitation({ id, wedding }) {
       <div className="steps">{steps.map((step, index) => <StepCard key={step.id} step={step} index={index} onOpen={open} />)}</div>
       <button className="primary-button" onClick={() => open('rsvp')}><Heart size={19} fill="currentColor" />Xác nhận tham dự ngay<ChevronRight size={19} /></button>
     </section>
-    <footer className="footer"><p><Leaf size={22} />Cảm ơn bạn đã đồng hành cùng chúng tôi!<Leaf size={22} /></p><Divider /></footer>
+    <footer className="footer"><p><Leaf size={22} />Cảm ơn bạn đã đồng hành cùng chúng tôi!<Leaf size={22} /></p><Divider /><button className="admin-link" onClick={() => open('admin')}>Quản lý thiệp</button></footer>
+    </div>
+    {page === 'wishes' && <WishesPage weddingId={id} onBack={closeDialog} />}
+    {page === 'rsvp' && <RsvpPage weddingId={id} events={events} onBack={closeDialog} />}
+    {page === 'admin' && <AdminPage weddingId={id} events={events} onBack={closeDialog} />}
     <nav className="bottom-nav" aria-label="Điều hướng chính">{navigation.map(({ id, icon: Icon, label }) => <button key={id} className={page === id ? 'active' : ''} aria-current={page === id ? 'page' : undefined} onClick={() => open(id)}><Icon size={24} fill={id === 'home' && page === id ? 'currentColor' : 'none'} /><span>{label}</span></button>)}</nav>
     <audio ref={audio} preload="metadata" onEnded={nextTrack} onPlay={() => { waitingForGesture.current = false; setPlaying(true); }} onPause={() => setPlaying(false)}
       onError={() => { waitingForGesture.current = false; setPlaying(false); setMusicError('Không tải được bài này. Bạn hãy chọn bài khác.'); }} />
     {tracks.length > 0 && <button className="music-toggle" data-music-control onClick={toggleMusic} aria-label={playing ? 'Tạm dừng nhạc cưới' : 'Phát nhạc cưới'} title={tracks[trackIndex]?.title}>
       {playing ? <Pause size={20} /> : <Play size={20} />}<span>{playing ? 'Tạm dừng nhạc' : 'Phát nhạc'}</span>
     </button>}
-    {page !== 'home' && <Modal key={page} title={titles[page]} className={page === 'album' ? 'album-modal' : ''} onClose={closeDialog}>
-      {page === 'rsvp' && <form onSubmit={e => submit(e, 'rsvp')} className="form"><p>Hẹn gặp bạn trong ngày chung đôi của chúng mình.</p><label>Họ và tên<input name="name" autoComplete="name" required placeholder="Tên của bạn" maxLength={80} /></label><label>Bạn sẽ tham dự chứ?<select name="attendance"><option value="yes">Mình sẽ đến chung vui</option><option value="no">Tiếc quá, mình không thể đến</option></select></label><label>Số người tham dự<input name="guests" type="number" min="1" max="20" defaultValue="1" required /></label><button className="primary-button" type="submit"><Check size={18} />Lưu xác nhận</button><small>Bản mẫu: thông tin chỉ lưu trên trình duyệt này, chưa gửi đến cô dâu chú rể.</small></form>}
+    {['map', 'album', 'music'].includes(page) && <Modal key={page} title={titles[page]} className={page === 'album' ? 'album-modal' : ''} onClose={closeDialog}>
       {page === 'map' && <div className="map-content">
         <h3>{wedding.venue}</h3><p>{wedding.address}</p>
         <MapPreview href={directionsUrl} venue={wedding.venue} />
         <a className="primary-button" href={directionsUrl} target="_blank" rel="noreferrer">Xem đường đi trên Google Maps<ChevronRight size={18} /></a>
       </div>}
       {page === 'album' && <Album photos={photos} />}
-      {page === 'wishes' && <><form className="form" onSubmit={e => submit(e, 'wishes')}><label>Họ và tên<input name="name" autoComplete="name" placeholder="Tên của bạn" maxLength={80} required /></label><label>Lời chúc<textarea name="message" placeholder="Chúc hai bạn trăm năm hạnh phúc…" rows={3} maxLength={1000} required /></label><button className="primary-button" type="submit"><Heart size={18} />Lưu lời chúc</button><small>Lời chúc chỉ hiển thị trên trình duyệt này.</small></form><div className="wishes">{wishes.map((wish, i) => <article key={i}><strong>{wish.name}</strong><p>{wish.message}</p></article>)}</div></>}
       {page === 'music' && <div className="music-content" data-music-control><span className="icon-circle rose"><Music2 size={30} /></span>
         <p>Chọn bài hát bạn muốn nghe cùng thiệp cưới.<br />Hết bài, nhạc tự chuyển ngẫu nhiên sang bài khác.</p>
         <div className="music-track-list" aria-label="Danh sách nhạc cưới">{tracks.map((track, index) => <button key={track.url} className={`music-track ${index === trackIndex ? 'selected' : ''}`} aria-pressed={index === trackIndex} onClick={() => selectTrack(index)}>
