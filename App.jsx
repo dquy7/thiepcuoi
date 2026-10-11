@@ -286,7 +286,7 @@ function WeddingInvitation({ id, wedding }) {
       <div className="steps">{steps.map((step, index) => <StepCard key={step.id} step={step} index={index} onOpen={open} />)}</div>
       <button className="primary-button" onClick={() => open('rsvp')}><Heart size={19} fill="currentColor" />Xác nhận tham dự ngay<ChevronRight size={19} /></button>
     </section>
-    <footer className="footer"><p><Leaf size={22} />Cảm ơn bạn đã đồng hành cùng chúng tôi!<Leaf size={22} /></p><Divider /><button className="admin-link" onClick={() => open('admin')}>Quản lý thiệp</button></footer>
+    <footer className="footer"><p><Leaf size={22} /><span>Cảm ơn bạn đã đồng hành cùng chúng tôi!</span><Leaf size={22} /></p><Divider /><button className="admin-link" onClick={() => open('admin')}>Quản lý thiệp</button></footer>
     </div>
     {page === 'wishes' && <WishesPage weddingId={id} onBack={closeDialog} />}
     {page === 'rsvp' && <RsvpPage weddingId={id} events={events} onBack={closeDialog} />}
