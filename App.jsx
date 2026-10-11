@@ -115,9 +115,15 @@ function Modal({ title, onClose, children, className = '' }) {
   useEffect(() => {
     const previous = document.activeElement;
     const overflow = document.body.style.overflow;
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
     document.body.style.overflow = 'hidden';
     ref.current.showModal();
-    return () => { document.body.style.overflow = overflow; previous?.focus(); };
+    return () => {
+      document.body.style.overflow = overflow;
+      previous?.focus({ preventScroll: true });
+      window.scrollTo({ left: scrollX, top: scrollY, behavior: 'instant' });
+    };
   }, []);
   return <dialog ref={ref} className={`modal ${className}`} onCancel={onClose} onClick={e => { if (e.target === ref.current) onClose(); }}>
     <div className="modal-header"><h2>{title}</h2><button className="icon-button" onClick={onClose} aria-label="Đóng"><X /></button></div>
@@ -194,6 +200,10 @@ function WeddingInvitation({ id, wedding }) {
   function open(id) {
     setMenu(false); setNotice(''); setPage(id);
     if (id === 'home') window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function closeDialog() {
+    setNotice('');
+    setPage('home');
   }
   function submit(e, kind) {
     e.preventDefault();
@@ -286,12 +296,11 @@ function WeddingInvitation({ id, wedding }) {
     {tracks.length > 0 && <button className="music-toggle" data-music-control onClick={toggleMusic} aria-label={playing ? 'Tạm dừng nhạc cưới' : 'Phát nhạc cưới'} title={tracks[trackIndex]?.title}>
       {playing ? <Pause size={20} /> : <Play size={20} />}<span>{playing ? 'Tạm dừng nhạc' : 'Phát nhạc'}</span>
     </button>}
-    {page !== 'home' && <Modal key={page} title={titles[page]} className={page === 'album' ? 'album-modal' : ''} onClose={() => open('home')}>
+    {page !== 'home' && <Modal key={page} title={titles[page]} className={page === 'album' ? 'album-modal' : ''} onClose={closeDialog}>
       {page === 'rsvp' && <form onSubmit={e => submit(e, 'rsvp')} className="form"><p>Hẹn gặp bạn trong ngày chung đôi của chúng mình.</p><label>Họ và tên<input name="name" autoComplete="name" required placeholder="Tên của bạn" maxLength={80} /></label><label>Bạn sẽ tham dự chứ?<select name="attendance"><option value="yes">Mình sẽ đến chung vui</option><option value="no">Tiếc quá, mình không thể đến</option></select></label><label>Số người tham dự<input name="guests" type="number" min="1" max="20" defaultValue="1" required /></label><button className="primary-button" type="submit"><Check size={18} />Lưu xác nhận</button><small>Bản mẫu: thông tin chỉ lưu trên trình duyệt này, chưa gửi đến cô dâu chú rể.</small></form>}
       {page === 'map' && <div className="map-content">
         <h3>{wedding.venue}</h3><p>{wedding.address}</p>
         <MapPreview href={directionsUrl} venue={wedding.venue} />
-        <p>{wedding.time} {wedding.date}</p>
         <a className="primary-button" href={directionsUrl} target="_blank" rel="noreferrer">Xem đường đi trên Google Maps<ChevronRight size={18} /></a>
       </div>}
       {page === 'album' && <Album photos={photos} />}
