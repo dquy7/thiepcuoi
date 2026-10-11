@@ -108,18 +108,23 @@ export function WishesPage({ weddingId, onBack }) {
 
 export function RsvpPage({ weddingId, events, onBack }) {
   const [busy, setBusy] = useState(false); const [status, setStatus] = useState(''); const [attendance, setAttendance] = useState('yes');
+  const response = useRef(null);
+  useEffect(() => { if (status) response.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, [status]);
   async function submit(event) {
     event.preventDefault(); if (!backend || busy) return;
     const form = event.currentTarget; const fields = new FormData(form);
     const name = String(fields.get('name')).trim();
     const selected = fields.getAll('events');
+    const guests = attendance === 'yes' ? Number(fields.get('guests')) : 0;
     if (!name || (attendance === 'yes' && !selected.length)) { setStatus('Bạn điền tên và chọn ít nhất một buổi tham dự nhé.'); return; }
     setBusy(true); setStatus('');
     try {
       await ensureGuest();
-      const { error } = await backend.rpc('send_rsvp', { p_wedding_id: weddingId, p_name: name, p_attendance: attendance === 'yes', p_guests: attendance === 'yes' ? Number(fields.get('guests')) : 0, p_events: attendance === 'yes' ? selected : [] });
+      const { error } = await backend.rpc('send_rsvp', { p_wedding_id: weddingId, p_name: name, p_attendance: attendance === 'yes', p_guests: guests, p_events: attendance === 'yes' ? selected : [] });
       if (error) throw error;
-      setStatus('Đã gửi xác nhận đến cô dâu chú rể. Bạn có thể gửi lại để cập nhật lựa chọn trên thiết bị này.');
+      if (attendance !== 'yes') setStatus('Đã gửi xác nhận đến cô dâu chú rể. Bạn có thể gửi lại để cập nhật lựa chọn trên thiết bị này.');
+      else if (guests === 1) setStatus('Trời ơiii! Bạn phải đi cùng người thương và gia đình đi chứ nèee.\nCảm ơn bạn đã đồng ý đến tham dự hôn lễ của chúng mình nha.\nHi vọng bạn sẽ đi 1 về 2 😂');
+      else setStatus('Cảm ơn bạn đã đồng ý đến tham dự hôn lễ của chúng mình nha.\nChúc bạn và gia đình luôn vui vẻ nhé!!!');
     } catch (error) { setStatus(friendlyError(error)); } finally { setBusy(false); }
   }
   return <GuestPage title="Hẹn gặp bạn ngày chung đôi" subtitle="Cho chúng mình biết bạn có thể đến để chuẩn bị đón tiếp thật chu đáo nhé." onBack={onBack}>
@@ -129,6 +134,6 @@ export function RsvpPage({ weddingId, events, onBack }) {
       {attendance === 'yes' && <><div className="rsvp-events"><p>Bạn tham dự buổi nào?</p>{events.map(event => <label key={event.id}><input type="checkbox" name="events" value={event.id} /><span><strong>{event.title}</strong><small>{event.time} {event.date}</small></span></label>)}</div><label>Số người tham dự (bao gồm bạn)<input name="guests" type="number" min={1} max={20} defaultValue={1} required /></label></>}
       <p className="guest-form-note">Thông tin xác nhận chỉ cô dâu chú rể xem được.</p>
       <button className="primary-button" disabled={!backend || busy}><Check size={18} />{busy ? 'Đang gửi…' : 'Gửi xác nhận'}</button>
-    </fieldset></form>{status && <p className="notice" role="status">{status}</p>}
+    </fieldset></form>{status && <p ref={response} className="notice rsvp-response" role="status">{status}</p>}
   </GuestPage>;
 }
