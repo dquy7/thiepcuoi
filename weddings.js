@@ -40,7 +40,7 @@ export const weddings = {
       'https://images.unsplash.com/photo-1591604466107-ec97de577aff?auto=format&fit=crop&w=1000&q=85',
     ],
     families: [
-      { title: 'Nhà trai', father: 'Ông Nguyễn Văn Sáu', mother: 'Trần Thị Nga', address: 'Phường Cầu Giấy, Hà Nội' },
+      { title: 'Nhà trai', father: 'Ông Nguyễn Văn Sáu', mother: 'Bà Trần Thị Nga', address: 'Phường Cầu Giấy, Hà Nội' },
       { title: 'Nhà gái', father: 'Ông Trần Văn Nam', mother: 'Bà Phạm Thị Lan', address: 'Phường Cầu Giấy, Hà Nội' },
     ],
   },
