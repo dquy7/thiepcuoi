@@ -21,7 +21,13 @@ export const weddings = {
       'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1600&q=85',
       'https://images.unsplash.com/photo-1537633552985-df8429e8048b?auto=format&fit=crop&w=1600&q=85',
     ],
-    musicUrl: './music/vay-cuoi-erik.mp3',
+    musicTracks: [
+      { title: 'Váy cưới — ERIK', url: './music/vay-cuoi-erik.mp3' },
+      { title: 'Xứng đôi cưới thôi', url: './music/xung-doi-cuoi-thoi.mp3' },
+      { title: 'Một nhà', url: './music/mot-nha.mp3' },
+      { title: 'Lễ đường', url: './music/le-duong.mp3' },
+      { title: 'Bài này không để đi diễn', url: './music/bai-nay-khong-de-di-dien.mp3' },
+    ],
     album: [
       'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=85',
       'https://images.unsplash.com/photo-1523438885200-e635ba2c371e?auto=format&fit=crop&w=900&q=85',
