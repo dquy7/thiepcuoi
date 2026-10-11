@@ -204,3 +204,10 @@ h1>span{font-size:clamp(42px,4.8vw,64px);overflow-wrap:anywhere}
 .music-content .music-status{font-size:12px}.music-track:focus-visible,.music-toggle:focus-visible{outline:2px solid var(--sage);outline-offset:3px}
 .welcome-confetti{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:30}
 @media(prefers-reduced-motion:reduce){.welcome-confetti{display:none}}
+.invitation-content[hidden]{display:none}
+.invitation-welcome{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:32px 22px;overflow-y:auto;background:radial-gradient(ellipse at 15% 10%,#f0d9d88c,transparent 55%),radial-gradient(ellipse at 90% 90%,#dce7d8,transparent 55%),var(--paper)}
+.welcome-envelope{font-size:64px;line-height:1.2}.invitation-welcome .eyebrow{color:var(--green);font-size:12px;letter-spacing:3px}
+.invitation-welcome h1{font:clamp(36px,7vw,58px) var(--script);color:var(--green);line-height:1.3;overflow-wrap:anywhere}.invitation-welcome h1>span{display:block;font-size:30px;color:var(--pink)}
+.invitation-welcome .divider{margin:0 auto}.welcome-message{font-size:14px;line-height:1.9;color:#697468}.welcome-open{min-width:210px;font-size:16px;box-shadow:0 6px 20px #35554220}
+.welcome-music-hint{display:flex;align-items:center;justify-content:center;gap:7px;font-size:12px;color:#7c8277}.hero-content h1:focus{outline:none}
+@media(max-height:600px){.invitation-welcome{gap:10px;justify-content:flex-start}.welcome-envelope{font-size:40px}}

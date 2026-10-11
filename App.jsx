@@ -143,6 +143,8 @@ function WeddingInvitation({ id, wedding }) {
   const mapUrl = wedding.mapUrl || `https://www.google.com/maps/search/?api=1&query=${mapQuery}`;
   const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${mapQuery}&travelmode=driving`;
   const [page, setPage] = useState('home');
+  const [opened, setOpened] = useState(false);
+  const invitationTitle = useRef(null);
   const [menu, setMenu] = useState(false);
   const [scrolled, setScrolled] = useState(() => window.scrollY > 40);
   const [notice, setNotice] = useState('');
@@ -169,19 +171,26 @@ function WeddingInvitation({ id, wedding }) {
     const player = audio.current;
     if (!tracks.length || !player) return;
     player.src = tracks[currentTrack.current].url;
-    playMusic();
-    const startAfterGesture = event => {
-      if (waitingForGesture.current && !event.target.closest?.('[data-music-control]')) playMusic();
-    };
-    document.addEventListener('click', startAfterGesture);
-    document.addEventListener('keydown', startAfterGesture);
     return () => {
       ++playRequest.current;
       player.pause();
-      document.removeEventListener('click', startAfterGesture);
-      document.removeEventListener('keydown', startAfterGesture);
     };
   }, [tracks]);
+  useEffect(() => {
+    if (opened) {
+      invitationTitle.current?.focus({ preventScroll: true });
+      return;
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = previousOverflow; };
+  }, [opened]);
+  function openInvitation() {
+    // Gọi play ngay trong thao tác của khách, trước khi cập nhật giao diện.
+    playMusic();
+    setOpened(true);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
   function open(id) {
     setMenu(false); setNotice(''); setPage(id);
     if (id === 'home') window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -238,7 +247,17 @@ function WeddingInvitation({ id, wedding }) {
   }
   const titles = { rsvp: 'Xác nhận tham dự', map: 'Đường đến lễ cưới', album: 'Khoảnh khắc yêu thương', wishes: 'Gửi lời chúc', music: 'Giai điệu ngày chung đôi' };
   return <main className="invitation">
-    <WelcomeConfetti />
+    {!opened && <section className="invitation-welcome" aria-labelledby="welcome-title">
+      <div className="welcome-envelope" aria-hidden="true">💌</div>
+      <p className="eyebrow">TRÂN TRỌNG KÍNH MỜI</p>
+      <h1 id="welcome-title">{wedding.groom}<span>&</span>{wedding.bride}</h1>
+      <Divider />
+      <p className="welcome-message">Một lời mời nhỏ, một ngày thật đặc biệt.<br />Mời bạn mở thiệp và chung vui cùng chúng mình.</p>
+      <button className="primary-button welcome-open" onClick={openInvitation} autoFocus><Heart size={20} fill="currentColor" />Mở thiệp 💌</button>
+      {tracks.length > 0 && <p className="welcome-music-hint"><Music2 size={15} />Nhạc cưới sẽ phát khi bạn mở thiệp</p>}
+    </section>}
+    <div className="invitation-content" hidden={!opened}>
+    {opened && <WelcomeConfetti />}
     <header className={`header ${scrolled ? 'is-scrolled' : ''}`}><a className="brand" href="#home" onClick={() => open('home')}><Heart size={23} fill="currentColor" /><span>Thiệp Cưới</span></a>
       <button className="icon-button" aria-label="Mở menu" aria-expanded={menu} aria-controls="header-menu" onClick={() => setMenu(!menu)}>{menu ? <X /> : <Menu />}</button>
       {menu && <nav id="header-menu" className="dropdown">{navigation.map(item => <button key={item.id} onClick={() => open(item.id)}>{item.label}</button>)}</nav>}
@@ -246,7 +265,7 @@ function WeddingInvitation({ id, wedding }) {
     <section className="hero" id="home">
       <CoverSlideshow photos={(wedding.coverPhotos?.length ? wedding.coverPhotos : [wedding.photo]).map(assetUrl)} />
       <div className="hero-content"><p className="eyebrow">TRÂN TRỌNG KÍNH MỜI</p><p className="intro">Quý khách tham dự lễ thành hôn của</p>
-        <h1><span>{wedding.groom}</span><Divider /><span>{wedding.bride}</span></h1>
+        <h1 ref={invitationTitle} tabIndex={-1}><span>{wedding.groom}</span><Divider /><span>{wedding.bride}</span></h1>
         <div className="families">{wedding.families.map(family => <article key={family.title}><h3>{family.title}</h3><p>{family.father}<br />{family.mother}</p><div className="family-address"><MapPin size={19} /><p>{family.address}</p></div></article>)}</div>
       </div>
     </section>
@@ -290,5 +309,6 @@ function WeddingInvitation({ id, wedding }) {
       </div>}
       {notice && <p className="notice" role="status">{notice}</p>}
     </Modal>}
+    </div>
   </main>;
 }
