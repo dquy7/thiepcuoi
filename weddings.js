@@ -7,8 +7,8 @@ export const weddings = {
     groom: 'Nguyễn Minh Anh', bride: 'Trần Thu Hà',
     time: '17:00 | Thứ Bảy,', date: '17 tháng 10 năm 2026',
     venue: 'Gia đình chú rể', address: 'Phường Cầu Giấy, Hà Nội',
-    mapUrl: 'https://maps.app.goo.gl/R8CL4urgSijFfPKDA',
-    mapQuery: '20.435278,106.048065', // Tọa độ chính xác từ link Google Maps.
+    mapUrl: 'https://maps.app.goo.gl/6xvZeu16vKfCdpEw6',
+    mapQuery: '20.436555,106.047287', // Tọa độ chính xác từ link Google Maps.
     // Chỉnh giờ, ngày và địa điểm riêng cho từng buổi tại đây.
     // Hiện cả hai dùng thông tin đang có, thay giờ lễ thành hôn nếu khác.
     events: [
