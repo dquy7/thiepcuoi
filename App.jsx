@@ -2,12 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { CalendarDays, Check, ChevronLeft, ChevronRight, Gift, Heart, House, Images, Leaf, MapPin, Menu, Music2, Pause, Play, UserRoundCheck, X } from 'lucide-react';
 
 import { defaultWeddingId, weddings } from './weddings.js';
+import WelcomeConfetti from './WelcomeConfetti.jsx';
 const steps = [
   { id: 'home', icon: CalendarDays, title: 'Xem thông tin lễ cưới', text: 'Tìm hiểu thời gian, địa điểm, nhà trai, nhà gái và các thông tin quan trọng khác.' },
   { id: 'rsvp', icon: UserRoundCheck, title: 'Xác nhận tham dự', text: 'Nhấn vào nút “Xác nhận tham dự” để gửi thông tin của bạn cho Ban Tổ Chức.' },
   { id: 'map', icon: MapPin, title: 'Xem bản đồ', text: 'Nhấn vào biểu tượng bản đồ để xem đường đi và vị trí tổ chức lễ cưới.' },
   { id: 'album', icon: Images, title: 'Xem album ảnh', text: 'Cùng xem lại những khoảnh khắc đẹp trong hành trình yêu thương của chúng mình.' },
-  { id: 'music', icon: Music2, title: 'Nghe nhạc cưới', text: 'Nhấn play để thưởng thức bài hát chủ đề của buổi lễ.' },
+  { id: 'music', icon: Music2, title: 'Nghe nhạc cưới', text: 'Chọn bài hát yêu thích. Hết bài, nhạc tự chuyển sang một bài khác.' },
   { id: 'wishes', icon: Gift, title: 'Gửi lời chúc', text: 'Để lại lời chúc yêu thương cho cặp đôi trong ngày trọng đại.' },
 ];
 const navigation = [
@@ -147,9 +148,13 @@ function WeddingInvitation({ id, wedding }) {
   const [notice, setNotice] = useState('');
   const [wishes, setWishes] = useState(() => readSaved(storageKey('wishes'), []));
   const [playing, setPlaying] = useState(false);
-  const [music, setMusic] = useState(() => assetUrl(wedding.musicUrl));
+  const [tracks] = useState(() => (wedding.musicTracks?.length ? wedding.musicTracks : wedding.musicUrl ? [{ title: 'Nhạc cưới', url: wedding.musicUrl }] : []).map(track => ({ ...track, url: assetUrl(track.url) })));
+  const [trackIndex, setTrackIndex] = useState(() => tracks.length ? Math.floor(Math.random() * tracks.length) : -1);
+  const [musicError, setMusicError] = useState('');
   const audio = useRef(null);
-  const uploadedMusic = useRef(null);
+  const currentTrack = useRef(trackIndex);
+  const waitingForGesture = useRef(tracks.length > 0);
+  const playRequest = useRef(0);
   useEffect(() => {
     const update = () => setScrolled(window.scrollY > 40);
     window.addEventListener('scroll', update, { passive: true });
@@ -160,7 +165,23 @@ function WeddingInvitation({ id, wedding }) {
     document.title = `Thiệp cưới | ${wedding.groom} & ${wedding.bride}`;
     document.querySelector('meta[name="description"]')?.setAttribute('content', `Trân trọng kính mời dự lễ cưới ${wedding.groom} và ${wedding.bride}, ${wedding.date}, tại ${wedding.venue}.`);
   }, [wedding]);
-  useEffect(() => () => { if (uploadedMusic.current) URL.revokeObjectURL(uploadedMusic.current); }, []);
+  useEffect(() => {
+    const player = audio.current;
+    if (!tracks.length || !player) return;
+    player.src = tracks[currentTrack.current].url;
+    playMusic();
+    const startAfterGesture = event => {
+      if (waitingForGesture.current && !event.target.closest?.('[data-music-control]')) playMusic();
+    };
+    document.addEventListener('click', startAfterGesture);
+    document.addEventListener('keydown', startAfterGesture);
+    return () => {
+      ++playRequest.current;
+      player.pause();
+      document.removeEventListener('click', startAfterGesture);
+      document.removeEventListener('keydown', startAfterGesture);
+    };
+  }, [tracks]);
   function open(id) {
     setMenu(false); setNotice(''); setPage(id);
     if (id === 'home') window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -178,13 +199,46 @@ function WeddingInvitation({ id, wedding }) {
       e.currentTarget.reset();
     } catch { setNotice('Trình duyệt không thể lưu dữ liệu. Vui lòng thử lại.'); }
   }
-  async function toggleMusic() {
+  async function playMusic() {
+    if (!audio.current || !tracks.length) return;
+    const request = ++playRequest.current;
+    setMusicError('');
+    try {
+      await audio.current.play();
+      if (request === playRequest.current) waitingForGesture.current = false;
+    } catch (error) {
+      if (request !== playRequest.current || error.name === 'AbortError') return;
+      waitingForGesture.current = error.name === 'NotAllowedError';
+      if (!waitingForGesture.current) setMusicError('Không phát được bài này. Bạn hãy chọn bài khác.');
+    }
+  }
+  function selectTrack(index) {
+    if (!audio.current || !tracks[index]) return;
+    if (index !== currentTrack.current || audio.current.ended) {
+      currentTrack.current = index;
+      setTrackIndex(index);
+      audio.current.src = tracks[index].url;
+      audio.current.load();
+    }
+    playMusic();
+  }
+  function nextTrack() {
+    if (!tracks.length) return;
+    // Chọn ngẫu nhiên trong các bài còn lại, không lặp ngay bài vừa phát.
+    const offset = tracks.length > 1 ? 1 + Math.floor(Math.random() * (tracks.length - 1)) : 0;
+    selectTrack((currentTrack.current + offset) % tracks.length);
+  }
+  function toggleMusic() {
     if (!audio.current) return;
-    if (playing) audio.current.pause();
-    else try { await audio.current.play(); } catch { setNotice('Không phát được tệp nhạc này. Hãy chọn một tệp khác.'); }
+    if (!audio.current.paused) {
+      waitingForGesture.current = false;
+      ++playRequest.current;
+      audio.current.pause();
+    } else playMusic();
   }
   const titles = { rsvp: 'Xác nhận tham dự', map: 'Đường đến lễ cưới', album: 'Khoảnh khắc yêu thương', wishes: 'Gửi lời chúc', music: 'Giai điệu ngày chung đôi' };
   return <main className="invitation">
+    <WelcomeConfetti />
     <header className={`header ${scrolled ? 'is-scrolled' : ''}`}><a className="brand" href="#home" onClick={() => open('home')}><Heart size={23} fill="currentColor" /><span>Thiệp Cưới</span></a>
       <button className="icon-button" aria-label="Mở menu" aria-expanded={menu} aria-controls="header-menu" onClick={() => setMenu(!menu)}>{menu ? <X /> : <Menu />}</button>
       {menu && <nav id="header-menu" className="dropdown">{navigation.map(item => <button key={item.id} onClick={() => open(item.id)}>{item.label}</button>)}</nav>}
@@ -208,7 +262,11 @@ function WeddingInvitation({ id, wedding }) {
     </section>
     <footer className="footer"><p><Leaf size={22} />Cảm ơn bạn đã đồng hành cùng chúng tôi!<Leaf size={22} /></p><Divider /></footer>
     <nav className="bottom-nav" aria-label="Điều hướng chính">{navigation.map(({ id, icon: Icon, label }) => <button key={id} className={page === id ? 'active' : ''} aria-current={page === id ? 'page' : undefined} onClick={() => open(id)}><Icon size={24} fill={id === 'home' && page === id ? 'currentColor' : 'none'} /><span>{label}</span></button>)}</nav>
-    <audio ref={audio} src={music || undefined} loop onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} />
+    <audio ref={audio} preload="metadata" onEnded={nextTrack} onPlay={() => { waitingForGesture.current = false; setPlaying(true); }} onPause={() => setPlaying(false)}
+      onError={() => { waitingForGesture.current = false; setPlaying(false); setMusicError('Không tải được bài này. Bạn hãy chọn bài khác.'); }} />
+    {tracks.length > 0 && <button className="music-toggle" data-music-control onClick={toggleMusic} aria-label={playing ? 'Tạm dừng nhạc cưới' : 'Phát nhạc cưới'} title={tracks[trackIndex]?.title}>
+      {playing ? <Pause size={20} /> : <Play size={20} />}<span>{playing ? 'Tạm dừng nhạc' : 'Phát nhạc'}</span>
+    </button>}
     {page !== 'home' && <Modal key={page} title={titles[page]} className={page === 'album' ? 'album-modal' : ''} onClose={() => open('home')}>
       {page === 'rsvp' && <form onSubmit={e => submit(e, 'rsvp')} className="form"><p>Hẹn gặp bạn trong ngày chung đôi của chúng mình.</p><label>Họ và tên<input name="name" autoComplete="name" required placeholder="Tên của bạn" maxLength={80} /></label><label>Bạn sẽ tham dự chứ?<select name="attendance"><option value="yes">Mình sẽ đến chung vui</option><option value="no">Tiếc quá, mình không thể đến</option></select></label><label>Số người tham dự<input name="guests" type="number" min="1" max="20" defaultValue="1" required /></label><button className="primary-button" type="submit"><Check size={18} />Lưu xác nhận</button><small>Bản mẫu: thông tin chỉ lưu trên trình duyệt này, chưa gửi đến cô dâu chú rể.</small></form>}
       {page === 'map' && <div className="map-content">
@@ -219,7 +277,17 @@ function WeddingInvitation({ id, wedding }) {
       </div>}
       {page === 'album' && <Album photos={photos} />}
       {page === 'wishes' && <><form className="form" onSubmit={e => submit(e, 'wishes')}><label>Họ và tên<input name="name" autoComplete="name" placeholder="Tên của bạn" maxLength={80} required /></label><label>Lời chúc<textarea name="message" placeholder="Chúc hai bạn trăm năm hạnh phúc…" rows={3} maxLength={1000} required /></label><button className="primary-button" type="submit"><Heart size={18} />Lưu lời chúc</button><small>Lời chúc chỉ hiển thị trên trình duyệt này.</small></form><div className="wishes">{wishes.map((wish, i) => <article key={i}><strong>{wish.name}</strong><p>{wish.message}</p></article>)}</div></>}
-      {page === 'music' && <div className="music-content"><span className="icon-circle rose"><Music2 size={30} /></span><p>Chọn bài hát bạn muốn nghe cùng thiệp cưới.</p><label className="file-label">Chọn tệp nhạc<input type="file" accept="audio/*" onChange={e => { const file = e.target.files[0]; if (file) { audio.current.pause(); if (uploadedMusic.current) URL.revokeObjectURL(uploadedMusic.current); uploadedMusic.current = URL.createObjectURL(file); setMusic(uploadedMusic.current); setNotice(''); } }} /></label><button className="primary-button" disabled={!music} onClick={toggleMusic}>{playing ? <Pause size={19} /> : <Play size={19} />}{playing ? 'Tạm dừng' : 'Phát nhạc'}</button></div>}
+      {page === 'music' && <div className="music-content" data-music-control><span className="icon-circle rose"><Music2 size={30} /></span>
+        <p>Chọn bài hát bạn muốn nghe cùng thiệp cưới.<br />Hết bài, nhạc tự chuyển ngẫu nhiên sang bài khác.</p>
+        <div className="music-track-list" aria-label="Danh sách nhạc cưới">{tracks.map((track, index) => <button key={track.url} className={`music-track ${index === trackIndex ? 'selected' : ''}`} aria-pressed={index === trackIndex} onClick={() => selectTrack(index)}>
+          <span className="music-track-number">{index === trackIndex && playing ? <Music2 size={18} /> : String(index + 1).padStart(2, '0')}</span>
+          <span>{track.title}</span>{index === trackIndex ? <Check size={18} /> : <Play size={16} />}
+        </button>)}</div>
+        {tracks.length > 0 ? <><p className="music-status" role="status">{playing ? 'Đang phát' : 'Đã chọn'}: <strong>{tracks[trackIndex]?.title}</strong></p>
+          <div className="music-actions"><button className="primary-button" onClick={toggleMusic}>{playing ? <Pause size={19} /> : <Play size={19} />}{playing ? 'Tạm dừng' : 'Phát nhạc'}</button>
+            <button className="primary-button" onClick={nextTrack}>Bài tiếp theo<ChevronRight size={19} /></button></div></> : <p>Chưa có nhạc cho thiệp này.</p>}
+        {musicError && <p className="notice" role="alert">{musicError}</p>}
+      </div>}
       {notice && <p className="notice" role="status">{notice}</p>}
     </Modal>}
   </main>;
