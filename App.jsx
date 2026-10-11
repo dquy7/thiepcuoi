@@ -53,7 +53,9 @@ function EventCard({ event }) {
   const directions = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=driving`;
   return <article className="event-card">
     <h3>{event.title}</h3>
-    <div className="event-row"><span className="event-icon"><CalendarDays size={28} /></span><p><strong>{event.time}</strong><br />{event.date}</p></div>
+    <div className="event-row"><span className="event-icon"><CalendarDays size={28} /></span><p><strong>{event.time}</strong><br />{event.date} ( Dương Lịch )
+      {event.lunarDate && <><br /><span className="event-lunar-date">Tức ngày {event.lunarDate} ( Âm Lịch )</span></>}
+    </p></div>
     <a className="event-row event-location" href={event.mapUrl || directions} target="_blank" rel="noreferrer">
       <span className="event-icon"><MapPin size={28} /></span><p><strong>{event.venue}</strong><br />{event.address}</p>
     </a>
