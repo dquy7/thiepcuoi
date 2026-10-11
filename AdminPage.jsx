@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { backend, bucket } from './backend.js';
+import { backend, bucket, photoUrl } from './backend.js';
 import { GuestPage } from './GuestPages.jsx';
 
 export default function AdminPage({ weddingId, events, onBack }) {
@@ -101,6 +101,9 @@ export default function AdminPage({ weddingId, events, onBack }) {
       </React.Fragment>)}</tbody></table></div>
       <h2 className="admin-section-title">100 lời chúc gần nhất</h2><div className="admin-wishes">{wishes.map(wish=><article key={wish.id}>
         {editingWish?.id === wish.id ? <form className="form admin-editor" onSubmit={saveWish}><fieldset disabled={busy}><label>Tên người gửi<input name="name" required maxLength={80} defaultValue={wish.name} /></label><label>Lời chúc<textarea name="message" required maxLength={1000} rows={3} defaultValue={wish.message} /></label><small>Ảnh đính kèm được giữ nguyên.</small><div className="admin-actions"><button className="primary-button">Lưu thay đổi</button><button type="button" className="guest-back" onClick={() => setEditingWish(null)}>Hủy</button></div></fieldset></form> : <><strong>{wish.name}</strong><p>{wish.message}</p><div className="admin-row-actions"><button disabled={busy} onClick={() => { setEditingWish(wish); setStatus(''); }}>Sửa lời chúc</button><button className="delete" disabled={busy} onClick={()=>removeWish(wish)}>Xóa lời chúc</button></div></>}
+        {wish.photos.length > 0 && <div className={`wish-photos admin-wish-photos ${wish.photos.length === 1 ? 'single' : ''}`}>
+          {wish.photos.map((path, index) => <a key={path} href={photoUrl(path)} target="_blank" rel="noreferrer" aria-label={`Xem ảnh ${index + 1} của ${wish.name}`}><img src={photoUrl(path)} alt={`Ảnh đính kèm ${index + 1} của ${wish.name}`} loading="lazy" /></a>)}
+        </div>}
       </article>)}</div>
     </>}
   </GuestPage>;
