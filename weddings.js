@@ -5,16 +5,15 @@ export const defaultWeddingId = 'minh-anh-thu-ha';
 export const weddings = {
   'minh-anh-thu-ha': {
     groom: 'Nguyễn Minh Anh', bride: 'Trần Thu Hà',
-    time: '17:00 | Thứ Bảy,', date: '17 tháng 10 năm 2026',
-    lunarDate: '08/09/2026', // Ngày âm lịch, dùng chung cho hai buổi nếu không ghi riêng trong events.
+    time: '11:00 | Chủ Nhật,', date: '18 tháng 10 năm 2026',
+    lunarDate: '09/09/2026', // Lịch chung theo lễ thành hôn; từng buổi có thể ghi riêng bên dưới.
     venue: 'Gia đình chú rể', address: 'Phường Cầu Giấy, Hà Nội',
     mapUrl: 'https://maps.app.goo.gl/6xvZeu16vKfCdpEw6',
     mapQuery: '20.436555,106.047287', // Tọa độ chính xác từ link Google Maps.
     // Chỉnh giờ, ngày và địa điểm riêng cho từng buổi tại đây.
-    // Hiện cả hai dùng thông tin đang có, thay giờ lễ thành hôn nếu khác.
     events: [
-      { id: 'meal', title: 'Bữa cơm thân mật được tổ chức', time: '17:00 | Thứ Bảy,', date: '17 tháng 10 năm 2026' },
-      { id: 'ceremony', title: 'Lễ thành hôn được tổ chức', time: '17:00 | Thứ Bảy,', date: '17 tháng 10 năm 2026' },
+      { id: 'meal', title: 'Bữa cơm thân mật được tổ chức', time: '17:00 | Thứ Bảy,', date: '17 tháng 10 năm 2026', lunarDate: '08/09/2026' },
+      { id: 'ceremony', title: 'Lễ thành hôn được tổ chức', time: '11:00 | Chủ Nhật,', date: '18 tháng 10 năm 2026', lunarDate: '09/09/2026' },
     ],
     photo: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1600&q=85',
     coverPhotos: [ // 3 ảnh bìa tự chuyển, lặp lại mỗi 15 giây.
