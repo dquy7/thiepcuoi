@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // Pháo giấy chào mừng, chỉ chạy một lần khi mở thiệp.
 export default function WelcomeConfetti() {
