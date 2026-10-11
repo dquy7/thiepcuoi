@@ -46,6 +46,8 @@ Website → mở thiệp → cuối trang **Quản lý thiệp** → đăng nh�
 
 Màn quản lý có tổng số người từng buổi, CSV danh sách xác nhận, sửa/xóa xác nhận và sửa/xóa 100 lời chúc gần nhất. Khi sửa lời chúc, giữ nguyên ảnh đính kèm. Lời chúc cũ hơn có thể quản lý tại Supabase Table Editor. Ảnh lời chúc là công khai, vì vậy form thông báo cho khách trước khi gửi. Xóa lời chúc qua Table Editor không tự xóa file Storage; màn quản lý website sẽ cố xóa cả ảnh.
 
+Bảng xác nhận có lọc Tất cả / chỉ bữa cơm / chỉ lễ thành hôn / cả hai; CSV xuất đúng danh sách đang lọc. Các số tổng ở đầu màn hình vẫn tính toàn bộ xác nhận. Lời chúc có lọc Tất cả ngày / Hôm nay / Một ngày / Khoảng ngày / Tháng này, dựa trên ngày gửi theo giờ Việt Nam. Khoảng ngày bao gồm cả ngày bắt đầu và kết thúc. Truy vấn ngày được áp dụng trước giới hạn 100 lời chúc.
+
 ## 6. Kiểm tra sau kết nối
 
 - Mở hai trình duyệt/thiết bị, gửi lời chúc chữ, một ảnh, nhiều ảnh: thiết bị kia thấy lời chúc mới. Nếu Realtime mất kết nối, trang làm mới feed mỗi 30 giây khi tab đang hiển thị.

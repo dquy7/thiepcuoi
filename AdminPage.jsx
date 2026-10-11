@@ -1,12 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { backend, bucket, photoUrl } from './backend.js';
 import { GuestPage } from './GuestPages.jsx';
+import { filterRsvps, vietnamDate, wishDateBounds } from './admin-filters.js';
 
 export default function AdminPage({ weddingId, events, onBack }) {
   const [allowed, setAllowed] = useState(false); const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState(''); const [rsvps, setRsvps] = useState([]); const [wishes, setWishes] = useState([]);
   const [editingRsvp, setEditingRsvp] = useState(null);
   const [editingWish, setEditingWish] = useState(null);
+  const [eventFilter, setEventFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
+  const [day, setDay] = useState(() => vietnamDate());
+  const [startDay, setStartDay] = useState(() => vietnamDate());
+  const [endDay, setEndDay] = useState(() => vietnamDate());
+  const request = useRef(0);
+  const visibleRsvps = filterRsvps(rsvps, eventFilter);
+  const dateBounds = wishDateBounds(dateFilter, day, startDay, endDay);
   function editError() { return 'Chưa lưu được. Nếu chưa bật quyền sửa/xóa, hãy chạy supabase/admin-edit.sql trong SQL Editor rồi thử lại.'; }
   async function saveRsvp(event) {
     event.preventDefault(); if (busy) return;
@@ -40,12 +49,14 @@ export default function AdminPage({ weddingId, events, onBack }) {
   }
   async function load() {
     if (!backend) return;
+    const currentRequest = ++request.current;
     setBusy(true);
     try {
       const session = await backend.auth.getSession(); if (session.error) throw session.error;
       const user = session.data.session?.user;
       if (!user || user.is_anonymous) { setAllowed(false); return; }
       const permission = await backend.from('wedding_admins').select('wedding_id').eq('wedding_id', weddingId).eq('user_id', user.id).maybeSingle();
+      if (currentRequest !== request.current) return;
       if (permission.error) throw permission.error;
       if (!permission.data) { setAllowed(false); setStatus('Tài khoản này chưa được cấp quyền quản lý thiệp.'); return; }
       setAllowed(true);
@@ -56,12 +67,17 @@ export default function AdminPage({ weddingId, events, onBack }) {
         if (result.error) throw result.error; rows.push(...result.data);
         if (result.data.length < 500) break; offset += 500;
       }
-      setRsvps(rows);
-      const result = await backend.from('wishes').select('id,name,message,photos,created_at').eq('wedding_id', weddingId).order('created_at', { ascending: false }).limit(100);
-      if (result.error) throw result.error; setWishes(result.data);
-    } catch { setStatus('Chưa tải được dữ liệu quản lý. Bạn thử lại nhé.'); } finally { setBusy(false); }
+      const bounds = wishDateBounds(dateFilter, day, startDay, endDay);
+      let query = backend.from('wishes').select('id,name,message,photos,created_at').eq('wedding_id', weddingId).order('created_at', { ascending: false }).order('id').limit(100);
+      if (bounds.from) query = query.gte('created_at', bounds.from).lt('created_at', bounds.to);
+      const result = bounds.error ? { data: [], error: null } : await query;
+      if (currentRequest !== request.current) return;
+      if (result.error) throw result.error;
+      setRsvps(rows); setWishes(result.data);
+    } catch { if (currentRequest === request.current) setStatus('Chưa tải được dữ liệu quản lý. Bạn thử lại nhé.'); }
+    finally { if (currentRequest === request.current) setBusy(false); }
   }
-  useEffect(() => { load(); }, [weddingId]);
+  useEffect(() => { load(); return () => { ++request.current; }; }, [weddingId, dateFilter, day, startDay, endDay]);
   async function login(event) {
     event.preventDefault(); const fields = new FormData(event.currentTarget); setBusy(true); setStatus('');
     const { error } = await backend.auth.signInWithPassword({ email: String(fields.get('email')).trim(), password: String(fields.get('password')) });
@@ -81,7 +97,7 @@ export default function AdminPage({ weddingId, events, onBack }) {
   }
   function exportCsv() {
     const cell = value => `"${String(value).replace(/^[=+@\-\t\r]/, "'$&").replaceAll('"', '""')}"`;
-    const rows = [['Họ tên','Tham dự','Số người','Buổi tham dự','Cập nhật'], ...rsvps.map(row => [row.name,row.attendance ? 'Có' : 'Không',row.guests,row.events.map(id => events.find(event => event.id === id)?.title || id).join('; '),row.updated_at])];
+    const rows = [['Họ tên','Tham dự','Số người','Buổi tham dự','Cập nhật'], ...visibleRsvps.map(row => [row.name,row.attendance ? 'Có' : 'Không',row.guests,row.events.map(id => events.find(event => event.id === id)?.title || id).join('; '),row.updated_at])];
     const url = URL.createObjectURL(new Blob(['\uFEFF' + rows.map(row => row.map(cell).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
     const link = document.createElement('a'); link.href = url; link.download = `xac-nhan-${weddingId}.csv`; link.click(); window.setTimeout(() => URL.revokeObjectURL(url),1000);
   }
@@ -91,7 +107,9 @@ export default function AdminPage({ weddingId, events, onBack }) {
     {status && <p className="notice" role="status">{status}</p>}
     {allowed && <><div className="admin-actions"><button className="primary-button" onClick={load} disabled={busy}>Làm mới</button><button className="primary-button" onClick={exportCsv}>Xuất CSV</button><button className="guest-back" onClick={async () => { await backend.auth.signOut(); setAllowed(false); setRsvps([]); setWishes([]); }}>Đăng xuất</button></div>
       <div className="admin-stats">{events.map(event => <article key={event.id}><strong>{rsvps.filter(row => row.attendance && row.events.includes(event.id)).reduce((sum,row) => sum + row.guests,0)}</strong><span>{event.title}</span></article>)}<article><strong>{rsvps.filter(row=>!row.attendance).length}</strong><span>Xác nhận không đến</span></article></div>
-      <h2 className="admin-section-title">Xác nhận tham dự · {rsvps.length}</h2><div className="admin-table-wrap"><table><thead><tr><th>Họ tên</th><th>Tham dự</th><th>Số người</th><th>Buổi</th><th>Thao tác</th></tr></thead><tbody>{rsvps.map(row => <React.Fragment key={row.id}><tr><td>{row.name}</td><td>{row.attendance ? 'Có' : 'Không'}</td><td>{row.guests}</td><td>{row.events.map(id => events.find(event=>event.id===id)?.title || id).join(', ')}</td><td><div className="admin-row-actions"><button disabled={busy} onClick={() => { setEditingRsvp({ ...row }); setStatus(''); }}>Sửa</button><button className="delete" disabled={busy} onClick={() => removeRsvp(row)}>Xóa</button></div></td></tr>
+      <h2 className="admin-section-title">Xác nhận tham dự · {visibleRsvps.length} / {rsvps.length}</h2>
+      <div className="admin-filters"><label>Lọc buổi tham dự<select value={eventFilter} disabled={busy} onChange={event => { setEventFilter(event.target.value); setEditingRsvp(null); }}><option value="all">Tất cả</option><option value="meal">Bữa cơm thân mật được tổ chức</option><option value="ceremony">Lễ thành hôn được tổ chức</option><option value="both">Cả 2 buổi</option></select></label><p>Hai lựa chọn từng buổi chỉ hiện khách đến riêng buổi đó. Xuất CSV theo danh sách đang lọc.</p></div>
+      <div className="admin-table-wrap"><table><thead><tr><th>Họ tên</th><th>Tham dự</th><th>Số người</th><th>Buổi</th><th>Thao tác</th></tr></thead><tbody>{visibleRsvps.map(row => <React.Fragment key={row.id}><tr><td>{row.name}</td><td>{row.attendance ? 'Có' : 'Không'}</td><td>{row.guests}</td><td>{row.events.map(id => events.find(event=>event.id===id)?.title || id).join(', ')}</td><td><div className="admin-row-actions"><button disabled={busy} onClick={() => { setEditingRsvp({ ...row }); setStatus(''); }}>Sửa</button><button className="delete" disabled={busy} onClick={() => removeRsvp(row)}>Xóa</button></div></td></tr>
         {editingRsvp?.id === row.id && <tr><td colSpan={5}><form className="form admin-editor" onSubmit={saveRsvp}><fieldset disabled={busy}>
           <label>Họ tên<input name="name" maxLength={80} required defaultValue={row.name} /></label>
           <label>Tham dự<select name="attendance" value={editingRsvp.attendance ? 'yes' : 'no'} onChange={event => setEditingRsvp({ ...editingRsvp, attendance: event.target.value === 'yes' })}><option value="yes">Có</option><option value="no">Không</option></select></label>
@@ -99,11 +117,22 @@ export default function AdminPage({ weddingId, events, onBack }) {
           <div className="admin-actions"><button className="primary-button">Lưu thay đổi</button><button type="button" className="guest-back" onClick={() => setEditingRsvp(null)}>Hủy</button></div>
         </fieldset></form></td></tr>}
       </React.Fragment>)}</tbody></table></div>
-      <h2 className="admin-section-title">100 lời chúc gần nhất</h2><div className="admin-wishes">{wishes.map(wish=><article key={wish.id}>
+      {visibleRsvps.length === 0 && <p className="muted">Không có xác nhận phù hợp với bộ lọc này.</p>}
+      <h2 className="admin-section-title">Lời chúc · {wishes.length}</h2>
+      <div className="admin-filters"><label>Lọc ngày gửi lời chúc<select value={dateFilter} disabled={busy} onChange={event => { setDateFilter(event.target.value); setEditingWish(null); }}><option value="all">Tất cả ngày</option><option value="today">Hôm nay</option><option value="day">Chọn một ngày</option><option value="range">Chọn khoảng ngày</option><option value="month">Tháng này</option></select></label>
+        {dateFilter === 'day' && <label>Ngày<input type="date" value={day} disabled={busy} onChange={event => setDay(event.target.value)} /></label>}
+        {dateFilter === 'range' && <><label>Từ ngày<input type="date" value={startDay} disabled={busy} onChange={event => setStartDay(event.target.value)} /></label><label>Đến ngày<input type="date" value={endDay} min={startDay || undefined} disabled={busy} onChange={event => setEndDay(event.target.value)} /></label></>}
+        <p>Hiển thị tối đa 100 lời chúc mới nhất theo ngày gửi, tính theo giờ Việt Nam.</p>
+      </div>
+      {dateBounds.error && <p className="notice" role="alert">{dateBounds.error}</p>}
+      {busy && <p className="muted" role="status">Đang tải dữ liệu…</p>}
+      {!busy && !dateBounds.error && wishes.length === 0 && <p className="muted">Không có lời chúc trong thời gian đã chọn.</p>}
+      <div className="admin-wishes">{wishes.map(wish=><article key={wish.id}>
         {editingWish?.id === wish.id ? <form className="form admin-editor" onSubmit={saveWish}><fieldset disabled={busy}><label>Tên người gửi<input name="name" required maxLength={80} defaultValue={wish.name} /></label><label>Lời chúc<textarea name="message" required maxLength={1000} rows={3} defaultValue={wish.message} /></label><small>Ảnh đính kèm được giữ nguyên.</small><div className="admin-actions"><button className="primary-button">Lưu thay đổi</button><button type="button" className="guest-back" onClick={() => setEditingWish(null)}>Hủy</button></div></fieldset></form> : <><strong>{wish.name}</strong><p>{wish.message}</p><div className="admin-row-actions"><button disabled={busy} onClick={() => { setEditingWish(wish); setStatus(''); }}>Sửa lời chúc</button><button className="delete" disabled={busy} onClick={()=>removeWish(wish)}>Xóa lời chúc</button></div></>}
         {wish.photos.length > 0 && <div className={`wish-photos admin-wish-photos ${wish.photos.length === 1 ? 'single' : ''}`}>
           {wish.photos.map((path, index) => <a key={path} href={photoUrl(path)} target="_blank" rel="noreferrer" aria-label={`Xem ảnh ${index + 1} của ${wish.name}`}><img src={photoUrl(path)} alt={`Ảnh đính kèm ${index + 1} của ${wish.name}`} loading="lazy" /></a>)}
         </div>}
+        <time className="admin-wish-date" dateTime={wish.created_at}>Gửi lúc {new Date(wish.created_at).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })}</time>
       </article>)}</div>
     </>}
   </GuestPage>;

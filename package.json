@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test:backend": "node supabase/security.test.mjs",
+    "test:filters": "node --test admin-filters.test.mjs",
     "dev": "vite --host 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
